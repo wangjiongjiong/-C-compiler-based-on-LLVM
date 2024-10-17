@@ -1,5 +1,0 @@
-# ninja log v5
-0	2216	1729166730966782953	CMakeFiles/llvm_test.dir/main.cc.o	8bd58da6c54805da
-2216	2508	1729166731256781644	../bin/llvm_test	b76dcbb33fa91aff
-1	2212	1729167122030544639	CMakeFiles/llvm_test.dir/main.cc.o	8bd58da6c54805da
-2213	2482	1729167122310543881	../bin/llvm_test	b76dcbb33fa91aff
