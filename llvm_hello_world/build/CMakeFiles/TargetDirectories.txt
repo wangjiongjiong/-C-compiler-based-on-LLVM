@@ -1,0 +1,7 @@
+/home/wjm/llvm_hello_world/build/CMakeFiles/intrinsics_gen.dir
+/home/wjm/llvm_hello_world/build/CMakeFiles/omp_gen.dir
+/home/wjm/llvm_hello_world/build/CMakeFiles/acc_gen.dir
+/home/wjm/llvm_hello_world/build/CMakeFiles/RISCVTargetParserTableGen.dir
+/home/wjm/llvm_hello_world/build/CMakeFiles/llvm_test.dir
+/home/wjm/llvm_hello_world/build/CMakeFiles/edit_cache.dir
+/home/wjm/llvm_hello_world/build/CMakeFiles/rebuild_cache.dir
