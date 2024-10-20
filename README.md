@@ -12,6 +12,7 @@ auto，short，int，long，float，double，char，struct，union，typedef，c
 后续有机会会尝试实现
 
 2. llvm ir 语言指令
+
 - alloc
 - load
 - store
