@@ -1,6 +1,8 @@
 #include "lexer.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/ErrorOr.h"
+#include "parser.h"
+#include "printVisitor.h"
 
 int main(int argc, char *argv[])
 {
@@ -20,7 +22,7 @@ int main(int argc, char *argv[])
     std::unique_ptr<llvm::MemoryBuffer> membuf = std::move(*buf);
     Lexer lexer(membuf->getBuffer());
 
-    Token tok;
+    /* Token tok;
     while (1)
     {
         lexer.NextToken(tok);
@@ -32,7 +34,11 @@ int main(int argc, char *argv[])
         {
             break;
         }
-    }
+    } */
+
+    Parser parser(lexer);
+    auto program = parser.ParseProgram();
+    PrintVisitor printVisitor(program);
 
     return 0;
 }
