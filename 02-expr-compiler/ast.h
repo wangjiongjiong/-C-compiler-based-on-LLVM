@@ -2,8 +2,10 @@
 
 #include <memory>
 #include <vector>
+#include "llvm/IR/Value.h"
 
 // 节点头文件
+// 组合者模式
 
 /*
 prog : (expr? ";")*
@@ -22,10 +24,10 @@ class Visitor
 {
 public:
     virtual ~Visitor() {};
-    virtual void VisitProgram(Program *p) = 0;
-    virtual void VisitExpr(Expr *expr) {};
-    virtual void VisitBinaryExpr(BinaryExpr *binaryexpr) = 0;
-    virtual void VisitFactorExpr(FactorExpr *factorexpr) = 0;
+    virtual llvm::Value *VisitProgram(Program *p) = 0;
+    virtual llvm::Value *VisitExpr(Expr *expr) { return nullptr; };
+    virtual llvm::Value *VisitBinaryExpr(BinaryExpr *binaryexpr) = 0;
+    virtual llvm::Value *VisitFactorExpr(FactorExpr *factorexpr) = 0;
 };
 
 // 表达式
@@ -35,7 +37,7 @@ public:
     virtual ~Expr() {};
     // 因为表达式本身不会被执行
     // 因此作为基类表示
-    virtual void Accept(Visitor *v) {}
+    virtual llvm::Value *Accept(Visitor *v) { return nullptr; }
 };
 
 enum class OpCode
@@ -56,9 +58,9 @@ public:
     std::shared_ptr<Expr> left;
     std::shared_ptr<Expr> right;
 
-    void Accept(Visitor *v) override
+    llvm::Value *Accept(Visitor *v) override
     {
-        v->VisitBinaryExpr(this);
+        return v->VisitBinaryExpr(this);
     }
 };
 
@@ -67,9 +69,9 @@ class FactorExpr : public Expr
 {
 public:
     int number;
-    void Accept(Visitor *v) override
+    llvm::Value *Accept(Visitor *v) override
     {
-        v->VisitFactorExpr(this);
+        return v->VisitFactorExpr(this);
     }
 };
 

@@ -3,6 +3,7 @@
 #include "llvm/Support/ErrorOr.h"
 #include "parser.h"
 #include "printVisitor.h"
+#include "codegen.h"
 
 int main(int argc, char *argv[])
 {
@@ -39,6 +40,7 @@ int main(int argc, char *argv[])
     Parser parser(lexer);
     auto program = parser.ParseProgram();
     PrintVisitor printVisitor(program);
+    CodeGen codeGen(program);
 
     return 0;
 }
