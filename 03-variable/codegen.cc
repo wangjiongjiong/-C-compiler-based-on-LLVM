@@ -103,6 +103,7 @@ llvm::Value *CodeGen::VisitVariableDecl(VariableDecl *decl)
     {
         ty = irBuilder.getInt32Ty();
     }
+    // 创建地址
     llvm::Value *value = irBuilder.CreateAlloca(ty, nullptr, decl->name);
     varAddrMap.insert({decl->name, value});
     return value;
@@ -110,10 +111,12 @@ llvm::Value *CodeGen::VisitVariableDecl(VariableDecl *decl)
 llvm::Value *CodeGen::VisitAssignExpr(AssignExpr *expr)
 {
     auto left = expr->left;
+    // 这里得进行类型转换不然无法获取到name
     VariableAccessExpr *varAccessExpr = (VariableAccessExpr *)left.get();
     llvm::Value *leftvarAddr = varAddrMap[varAccessExpr->name];
     llvm::Value *rightvalue = expr->right->Accept(this);
-
+    // irBuilder.CreateStore 是 LLVM 中的一个函数，用于在 LLVM IR 中创建一个存储（store）指令。
+    // 这个指令将一个值存储到一个内存位置。
     return irBuilder.CreateStore(rightvalue, leftvarAddr);
 }
 llvm::Value *CodeGen::VisitVariableAccessExpr(VariableAccessExpr *variableAccessExpr)
@@ -126,5 +129,7 @@ llvm::Value *CodeGen::VisitVariableAccessExpr(VariableAccessExpr *variableAccess
         ty = irBuilder.getInt32Ty();
     }
 
+    // LLVM 中用于创建加载（load）指令的函数调用。
+    // 这个指令从指定的内存地址读取数据，并返回一个值
     return irBuilder.CreateLoad(ty, varAddr, variableAccessExpr->name);
 }
