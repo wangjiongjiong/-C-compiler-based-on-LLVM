@@ -3,38 +3,41 @@
 #include "llvm/Support/Casting.h"
 
 // 声明局部变量语义分析
-std::shared_ptr<AstNode> Sema::SemaVariableDeclNode(llvm::StringRef name, CType *ty)
+std::shared_ptr<AstNode> Sema::SemaVariableDeclNode(Token tok, CType *ty)
 {
     // 1.检查是否出现重定义
-    std::shared_ptr<Symbol> symbol = scope.FindVarSymbolInCurEnv(name);
+    llvm::StringRef text(tok.ptr, tok.len);
+    std::shared_ptr<Symbol> symbol = scope.FindVarSymbolInCurEnv(text);
     if (symbol)
     {
-        llvm::errs() << "Redefine varibale!!! " << name << "\n";
-        return nullptr;
+        // llvm::errs() << "Redefine varibale!!! " << text << "\n";
+        diagEngine.Report(llvm::SMLoc::getFromPointer(tok.ptr), diag::err_redefine, text);
     }
     // 2.无重定义，添加到符号表
-    scope.AddSymbol(SymbolKind::LocalVariable, ty, name);
+    scope.AddSymbol(SymbolKind::LocalVariable, ty, text);
 
-    auto variableDecl = std::make_shared<VariableDecl>();
-    variableDecl->name = name;
-    variableDecl->ty = ty;
+    auto Decl = std::make_shared<VariableDecl>();
+    Decl->tok = tok;
+    Decl->ty = ty;
 
-    return variableDecl;
+    return Decl;
 }
 
-std::shared_ptr<AstNode> Sema::SemaVariableAccessNode(llvm::StringRef name)
+std::shared_ptr<AstNode> Sema::SemaVariableAccessNode(Token tok)
 {
 
-    // 1.检查是否出现重定义
-    std::shared_ptr<Symbol> symbol = scope.FindVarSymbol(name);
+    // 1.检查是否出现未定义
+    llvm::StringRef text(tok.ptr, tok.len);
+    std::shared_ptr<Symbol> symbol = scope.FindVarSymbol(text);
     if (symbol == nullptr)
     {
-        llvm::errs() << "use undefined symbol: " << name << "\n";
-        return nullptr;
+        // llvm::errs() << "use undefined symbol: " << text << "\n";
+        diagEngine.Report(llvm::SMLoc::getFromPointer(tok.ptr), diag::err_undefine, text);
+        // return nullptr; 内部会退出
     }
 
     auto expr = std::make_shared<VariableAccessExpr>();
-    expr->name = name;
+    expr->tok = tok;
     // 变量访问不需要类型，类型在定义的时候声明了
     // expr->ty = ty;
     expr->ty = symbol->GetTy();
@@ -42,17 +45,19 @@ std::shared_ptr<AstNode> Sema::SemaVariableAccessNode(llvm::StringRef name)
 }
 
 // 声明赋值表达式语义分析
-std::shared_ptr<AstNode> Sema::SemaAssignExprNode(std::shared_ptr<AstNode> left, std::shared_ptr<AstNode> right)
+std::shared_ptr<AstNode> Sema::SemaAssignExprNode(std::shared_ptr<AstNode> left, std::shared_ptr<AstNode> right, Token tok)
 {
-    if (!left || !right)
+    assert(left && right);
+    /* if (!left || !right)
     {
         llvm::errs() << "left or right can't nullptr\n";
         return nullptr;
-    }
+    } */
     // 赋值必须是左值
     if (!llvm::isa<VariableAccessExpr>(left.get()))
     {
-        llvm::errs() << "must be left value!\n";
+        // llvm::errs() << "must be left value!\n";
+        diagEngine.Report(llvm::SMLoc::getFromPointer(tok.ptr), diag::err_undefine);
         return nullptr;
     }
 
@@ -73,11 +78,11 @@ std::shared_ptr<AstNode> Sema::SemaBinaryExprNode(std::shared_ptr<AstNode> left,
     return binaryExpr;
 }
 
-std::shared_ptr<AstNode> Sema::SemaNumberExprNode(int number, CType *ty)
+std::shared_ptr<AstNode> Sema::SemaNumberExprNode(Token tok, CType *ty)
 {
 
     auto factor = std::make_shared<NumberExpr>();
-    factor->number = number;
+    factor->tok = tok;
     factor->ty = ty;
 
     return factor;

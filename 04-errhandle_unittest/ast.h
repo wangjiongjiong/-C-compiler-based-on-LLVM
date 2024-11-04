@@ -4,14 +4,17 @@
 #include <vector>
 #include "llvm/IR/Value.h"
 #include "type.h"
+#include "lexer.h"
 
 // 节点头文件
 // 组合者模式
 
 /*
-prog : (decl-stmt | expr-stmt)*
+prog : stmt*
+stmt : decl-stmt | expr-stmt | null-stmt
+null-stmt : ";"
 decl-stmt : "int" identifier ("," identifier (= expr)?)* ";"
-expr-stmt : expr? ";"
+expr-stmt : expr ";"
 expr : assign-expr | add-expr
 assign-expr: identifier "=" expr
 add-expr : mult-expr (("+" | "-") mult-expr)*
@@ -63,6 +66,7 @@ private:
 public:
     virtual ~AstNode() {}
     CType *ty;
+    Token tok;
     AstNode(Kind kind) : kind(kind) {}
     const Kind Getkind() const { return kind; }
     virtual llvm::Value *Accept(Visitor *v) { return nullptr; }
@@ -71,7 +75,6 @@ public:
 class VariableDecl : public AstNode
 {
 public:
-    llvm::StringRef name;
     VariableDecl() : AstNode(ND_VariableDecl) {}
     llvm::Value *Accept(Visitor *v) override
     {
@@ -115,7 +118,6 @@ public:
 class NumberExpr : public AstNode
 {
 public:
-    int number;
     NumberExpr() : AstNode(ND_NumberFactor) {}
     llvm::Value *Accept(Visitor *v) override
     {
@@ -130,7 +132,6 @@ public:
 class VariableAccessExpr : public AstNode
 {
 public:
-    llvm::StringRef name;
     VariableAccessExpr() : AstNode(ND_VariableAccessExpr) {}
     llvm::Value *Accept(Visitor *v) override
     {

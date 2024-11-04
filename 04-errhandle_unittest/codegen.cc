@@ -91,7 +91,7 @@ llvm::Value *CodeGen::VisitBinaryExpr(BinaryExpr *binaryexpr)
 }
 llvm::Value *CodeGen::VisitNumberExpr(NumberExpr *numberExpr)
 {
-    return irBuilder.getInt32(numberExpr->number);
+    return irBuilder.getInt32(numberExpr->tok.value);
 }
 
 llvm::Value *CodeGen::VisitVariableDecl(VariableDecl *decl)
@@ -103,33 +103,36 @@ llvm::Value *CodeGen::VisitVariableDecl(VariableDecl *decl)
     {
         ty = irBuilder.getInt32Ty();
     }
+    llvm::StringRef text(decl->tok.ptr, decl->tok.len);
     // 创建地址
-    llvm::Value *value = irBuilder.CreateAlloca(ty, nullptr, decl->name);
-    varAddrMap.insert({decl->name, value});
+    llvm::Value *value = irBuilder.CreateAlloca(ty, nullptr, text);
+    varAddrTypeMap.insert({text, {value, ty}});
     return value;
 }
+
+// a = 3  => rvalue;
 llvm::Value *CodeGen::VisitAssignExpr(AssignExpr *expr)
 {
     auto left = expr->left;
     // 这里得进行类型转换不然无法获取到name
     VariableAccessExpr *varAccessExpr = (VariableAccessExpr *)left.get();
-    llvm::Value *leftvarAddr = varAddrMap[varAccessExpr->name];
+    llvm::StringRef text(varAccessExpr->tok.ptr, varAccessExpr->tok.len);
+    std::pair pair = varAddrTypeMap[text];
+    llvm::Value *leftvarAddr = pair.first;
+    llvm::Type *ty = pair.second;
     llvm::Value *rightvalue = expr->right->Accept(this);
     // irBuilder.CreateStore 是 LLVM 中的一个函数，用于在 LLVM IR 中创建一个存储（store）指令。
     // 这个指令将一个值存储到一个内存位置。
-    return irBuilder.CreateStore(rightvalue, leftvarAddr);
+    irBuilder.CreateStore(rightvalue, leftvarAddr);
+    return irBuilder.CreateLoad(ty, leftvarAddr, text);
 }
 llvm::Value *CodeGen::VisitVariableAccessExpr(VariableAccessExpr *variableAccessExpr)
 {
-    llvm::Value *varAddr = varAddrMap[variableAccessExpr->name];
-
-    llvm::Type *ty = nullptr;
-    if (variableAccessExpr->ty = CType::GetIntTy())
-    {
-        ty = irBuilder.getInt32Ty();
-    }
-
+    llvm::StringRef text(variableAccessExpr->tok.ptr, variableAccessExpr->tok.len);
+    std::pair pair = varAddrTypeMap[text];
+    llvm::Value *varAddr = pair.first;
+    llvm::Type *ty = pair.second;
     // LLVM 中用于创建加载（load）指令的函数调用。
     // 这个指令从指定的内存地址读取数据，并返回一个值
-    return irBuilder.CreateLoad(ty, varAddr, variableAccessExpr->name);
+    return irBuilder.CreateLoad(ty, varAddr, text);
 }

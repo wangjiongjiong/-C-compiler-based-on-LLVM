@@ -36,5 +36,5 @@ private:
     std::shared_ptr<llvm::Module> module;
 
     // 记录变量的地址
-    llvm::StringMap<llvm::Value *> varAddrMap;
+    llvm::StringMap<std::pair<llvm::Value *, llvm::Type *>> varAddrTypeMap;
 };

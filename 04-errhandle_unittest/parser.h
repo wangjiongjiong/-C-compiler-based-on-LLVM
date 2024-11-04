@@ -22,14 +22,18 @@ public:
     std::shared_ptr<Program> ParseProgram();
 
 private:
+    // parser 赋值表达式
+    std::shared_ptr<AstNode> ParseAssignExpr();
     // parser表达式
     std::shared_ptr<AstNode> ParseExpr();
     // parser term
     std::shared_ptr<AstNode> ParseTerm();
     // parser factor
     std::shared_ptr<AstNode> ParseFactor();
-    // parser 声明
-    std::vector<std::shared_ptr<AstNode>> ParserDecl();
+    // parser 声明语句 --- 经过修改的文法都是由语句构成的
+    std::vector<std::shared_ptr<AstNode>> ParserDeclStmt();
+    // parser Expr语句
+    std::shared_ptr<AstNode> ParseExprStmt();
 
     // 消费 token的函数
     // 检测当前token是否是该类型，不会消费
@@ -38,6 +42,11 @@ private:
     bool Consume(TokenType tokenType);
     // 前进一个token,一定会消费一个token
     void Advance();
+    // 返回诊断引擎
+    DiagEngine &GetDiagEngine() const
+    {
+        return lexer.GetDiagEngine();
+    }
 
     Token tok;
 };

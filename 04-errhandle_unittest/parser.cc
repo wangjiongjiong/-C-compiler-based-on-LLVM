@@ -1,11 +1,18 @@
 #include "parser.h"
 
 /*
-prog : (expr? ";")*
-expr : term (("+" | "-") trem)* ;
-term : factor (("*" | "/") factor)* ;
-factor : number | "(" expr ")" ;
-number : ([0-9])+
+prog : stmt*
+stmt : decl-stmt | expr-stmt | null-stmt
+null-stmt : ";"
+decl-stmt : "int" identifier ("," identifier (= expr)?)* ";"
+expr-stmt : expr ";"
+expr : assign-expr | add-expr
+assign-expr: identifier "=" expr
+add-expr : mult-expr (("+" | "-") mult-expr)*
+mult-expr : primary-expr (("*" | "/") primary-expr)*
+primary-expr : identifier | number | "(" expr ")"
+number: ([0-9])+
+identifier : (a-zA-Z_)(a-zA-Z0-9_)*
 */
 
 // parser program
@@ -17,16 +24,19 @@ std::shared_ptr<Program> Parser::ParseProgram()
     std::vector<std::shared_ptr<AstNode>> exprVec;
     while (tok.tokenType != TokenType::eof)
     {
+        /// 处理null语句
+
         // 是分号就找到下一位然后继续即可，表明当前的expr结束了
         if (tok.tokenType == TokenType::semi)
         {
             Advance();
             continue;
         }
+        /// 处理声明语句
         // 遇到int就是变量声明了
         if (tok.tokenType == TokenType::kw_int)
         {
-            const auto &exprs = ParserDecl();
+            const auto &exprs = ParserDeclStmt();
             for (auto &expr : exprs)
             {
                 exprVec.push_back(expr);
@@ -34,8 +44,9 @@ std::shared_ptr<Program> Parser::ParseProgram()
         }
         else
         {
+            /// 处理表达式语句
             // parser 一个expr然后加入到数组里
-            auto expr = ParseExpr();
+            auto expr = ParseExprStmt();
             exprVec.push_back(expr);
         }
     }
@@ -46,8 +57,8 @@ std::shared_ptr<Program> Parser::ParseProgram()
     return program;
 }
 
-// parser 声明
-std::vector<std::shared_ptr<AstNode>> Parser::ParserDecl()
+// parser 声明语句
+std::vector<std::shared_ptr<AstNode>> Parser::ParserDeclStmt()
 {
     // 先直接消耗int
     Consume(TokenType::kw_int);
@@ -66,24 +77,25 @@ std::vector<std::shared_ptr<AstNode>> Parser::ParserDecl()
         {
             assert(Consume(TokenType::comma));
         }
-        auto varibale_name = tok.content;
-        // 变量声明的节点
-        // int a = 3; => int a; a = 3;
-        // 语义分析
-        auto variableDecl = sema.SemaVariableDeclNode(varibale_name, baseTy);
+        Token temp = tok;
+        // auto varibale_name = tok.content;
+        //  变量声明的节点
+        //  int a = 3; => int a; a = 3;
+        //  语义分析
+        auto variableDecl = sema.SemaVariableDeclNode(temp, baseTy);
         astArr.push_back(variableDecl);
 
         Consume(TokenType::identifier);
         // 遇到了=就是要赋值
         if (tok.tokenType == TokenType::equal)
         {
-
+            Token optoken = tok;
             Advance();
-            auto left = sema.SemaVariableAccessNode(varibale_name);
+            auto left = sema.SemaVariableAccessNode(temp);
             // a = 3;
             auto right = ParseExpr();
             // 语义分析
-            auto assignExpr = sema.SemaAssignExprNode(left, right);
+            auto assignExpr = sema.SemaAssignExprNode(left, right, optoken);
             astArr.push_back(assignExpr);
         }
     }
@@ -91,11 +103,51 @@ std::vector<std::shared_ptr<AstNode>> Parser::ParserDecl()
     return astArr;
 }
 
+// 表达式语句
+std::shared_ptr<AstNode> Parser::ParseExprStmt()
+{
+    auto expr = ParseExpr();
+    Consume(TokenType::semi);
+    return expr;
+}
+
 // 左结合
+/*
+expr : assign-expr | add-expr
+assign-expr: identifier "=" expr
+add-expr : mult-expr (("+" | "-") mult-expr)*
+ */
+/// 往前看两个字符才能区分
+// LL(n) 分析向前看n个字符
 std::shared_ptr<AstNode> Parser::ParseExpr()
 {
+    bool isAssignExpr = false;
+
+    // 判断是否是赋值表达式，可以构建函数
+    lexer.SaveState();
+    if (tok.tokenType == TokenType::identifier)
+    {
+        Token temp;
+        lexer.NextToken(temp);
+        if (temp.tokenType == TokenType::equal)
+        {
+            isAssignExpr = true;
+        }
+    }
+    lexer.RestoreState();
+
+    // parser 赋值表达式
+    // assign-expr: identifier ("=" expr)+
+    // 可以是 a=b=c=5;
+    if (isAssignExpr)
+    {
+        return ParseAssignExpr();
+    }
+
+    // parser 加法表达式的分支
     // 左结合就是用一个while循环解决的
     // 碰到 +，- 就看右边 因为左边是term右边也是一个term
+    // add-expr : mult-expr (("+" | "-") mult-expr)*
     auto left = ParseTerm();
     while (tok.tokenType == TokenType::plus || tok.tokenType == TokenType::minus)
     {
@@ -165,18 +217,33 @@ std::shared_ptr<AstNode> Parser::ParseFactor()
     // 有可能最后是标识符
     else if (tok.tokenType == TokenType::identifier)
     {
-        auto expr = sema.SemaVariableAccessNode(tok.content);
+        auto expr = sema.SemaVariableAccessNode(tok);
         Advance();
         return expr;
     }
     else
     {
+        Expect(TokenType::number);
         // 这种情况是number
-        auto factor = sema.SemaNumberExprNode(tok.value, tok.ty);
+        auto factor = sema.SemaNumberExprNode(tok, tok.ty);
         Advance();
         return factor;
     }
 };
+
+// parser 赋值表达式
+// a=b=c=3;
+std::shared_ptr<AstNode> Parser::ParseAssignExpr()
+{
+    Expect(TokenType::identifier);
+    // llvm::StringRef text = tok.content;
+    Token temp = tok;
+    Advance();
+    auto expr = sema.SemaVariableAccessNode(temp);
+    Token optoken = tok;
+    Consume(TokenType::equal);
+    return sema.SemaAssignExprNode(expr, ParseExpr(), optoken);
+}
 
 bool Parser::Expect(TokenType tokenType)
 {
@@ -184,12 +251,17 @@ bool Parser::Expect(TokenType tokenType)
     {
         return true;
     }
+    GetDiagEngine().Report(
+        llvm::SMLoc::getFromPointer(tok.ptr),
+        diag::err_expected,
+        Token::GetSpellingText(tokenType),
+        llvm::StringRef(tok.ptr, tok.len));
     return false;
 }
 
 bool Parser::Consume(TokenType tokenType)
 {
-    if (tok.tokenType == tokenType)
+    if (Expect(tokenType))
     {
         Advance();
         return true;

@@ -5,6 +5,7 @@
 #include "printVisitor.h"
 #include "codegen.h"
 #include "sema.h"
+#include "diag_engine.h"
 
 int main(int argc, char *argv[])
 {
@@ -21,8 +22,14 @@ int main(int argc, char *argv[])
         llvm::errs() << "can't open file!\n";
         return -1;
     }
-    std::unique_ptr<llvm::MemoryBuffer> membuf = std::move(*buf);
-    Lexer lexer(membuf->getBuffer());
+
+    llvm::SourceMgr mgr;
+    DiagEngine diagEngine(mgr);
+
+    mgr.AddNewSourceBuffer(std::move(*buf), llvm::SMLoc());
+
+    // std::unique_ptr<llvm::MemoryBuffer> membuf = std::move(*buf);
+    Lexer lexer(mgr, diagEngine);
 
     /* Token tok;
     while (true)
@@ -37,7 +44,7 @@ int main(int argc, char *argv[])
             break;
         }
     } */
-    Sema sema;
+    Sema sema(diagEngine);
     Parser parser(lexer, sema);
     auto program = parser.ParseProgram();
     // PrintVisitor printVisitor(program);

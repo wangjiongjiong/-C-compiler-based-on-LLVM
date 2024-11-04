@@ -1,5 +1,64 @@
 #include "lexer.h"
 
+/* number,         // 数字
+    identifier, // 标识符
+    kw_int,     // int
+    minus,      // -
+    plus,       // +
+    star,       // *
+    slash,      // "/"
+    l_parent,   // "("
+    r_parent,   // ")"
+    semi,       // ";"
+    equal,      // =
+    comma,      // ,
+    eof         // end
+*/
+
+llvm::StringRef Token::GetSpellingText(TokenType tokenType)
+{
+    switch (tokenType)
+    {
+    case TokenType::kw_int:
+        return "int";
+
+    case TokenType::minus:
+        return "-";
+
+    case TokenType::plus:
+        return "+";
+
+    case TokenType::star:
+        return "*";
+
+    case TokenType::slash:
+        return "/";
+
+    case TokenType::l_parent:
+        return "(";
+
+    case TokenType::r_parent:
+        return ")";
+
+    case TokenType::semi:
+        return ";";
+
+    case TokenType::equal:
+        return "=";
+
+    case TokenType::comma:
+        return ",";
+
+    case TokenType::identifier:
+        return "identifier";
+
+    case TokenType::number:
+        return "number";
+    default:
+        llvm::llvm_unreachable_internal();
+    }
+}
+
 bool IsWhiteSpace(char ch)
 {
     return ch == ' ' || ch == '\r' || ch == '\n';
@@ -15,18 +74,8 @@ bool IsLetter(char ch)
     return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch == '_');
 }
 
-Lexer::Lexer(llvm::StringRef sourceCode)
-{
-    LineHeadPtr = sourceCode.begin();
-    BufPtr = sourceCode.begin();
-    BufEnd = sourceCode.end();
-    row = 1;
-}
-
 void Lexer::NextToken(Token &tok)
 {
-    // 行
-    tok.row = row;
 
     // 1.删除空格
     while (IsWhiteSpace(*BufPtr))
@@ -38,8 +87,6 @@ void Lexer::NextToken(Token &tok)
         }
         BufPtr++;
     }
-    // 列，先处理空格，处理空格完才是真正的token
-    tok.col = BufPtr - LineHeadPtr + 1;
 
     // 2.判断是否结尾
     if (BufPtr >= BufEnd)
@@ -47,7 +94,13 @@ void Lexer::NextToken(Token &tok)
         tok.tokenType = TokenType::eof;
         return;
     }
-    const char *start = BufPtr;
+
+    // 行
+    tok.row = row;
+    // 列，先处理空格，处理空格完才是真正的token
+    tok.col = BufPtr - LineHeadPtr + 1;
+    // 记录开始指针
+    const char *StartPtr = BufPtr;
     if (IsDigit(*BufPtr))
     {
 
@@ -57,12 +110,12 @@ void Lexer::NextToken(Token &tok)
         while (IsDigit(*BufPtr))
         {
             number = number * 10 + (*BufPtr++ - '0');
-            len++;
         }
         tok.tokenType = TokenType::number;
         tok.value = number;
         tok.ty = CType::GetIntTy();
-        tok.content = llvm::StringRef(start, len);
+        tok.ptr = StartPtr;
+        tok.len = BufPtr - StartPtr;
     }
     else if (IsLetter(*BufPtr))
     {
@@ -71,8 +124,10 @@ void Lexer::NextToken(Token &tok)
             BufPtr++;
         }
         tok.tokenType = TokenType::identifier;
-        tok.content = llvm::StringRef(start, BufPtr - start);
-        if (tok.content == "int")
+        tok.ptr = StartPtr;
+        tok.len = BufPtr - StartPtr;
+        llvm::StringRef text = llvm::StringRef(tok.ptr, tok.len);
+        if (text == "int")
         {
             tok.tokenType = TokenType::kw_int;
         }
@@ -85,71 +140,96 @@ void Lexer::NextToken(Token &tok)
         {
             tok.tokenType = TokenType::plus;
             BufPtr++;
-            tok.content = llvm::StringRef(start, 1);
+            tok.ptr = StartPtr;
+            tok.len = 1;
             break;
         }
         case '-':
         {
             tok.tokenType = TokenType::minus;
             BufPtr++;
-            tok.content = llvm::StringRef(start, 1);
+            tok.ptr = StartPtr;
+            tok.len = 1;
             break;
         }
         case '*':
         {
             tok.tokenType = TokenType::star;
             BufPtr++;
-            tok.content = llvm::StringRef(start, 1);
+            tok.ptr = StartPtr;
+            tok.len = 1;
             break;
         }
         case '/':
         {
             tok.tokenType = TokenType::slash;
             BufPtr++;
-            tok.content = llvm::StringRef(start, 1);
+            tok.ptr = StartPtr;
+            tok.len = 1;
             break;
         }
         case ';':
         {
             tok.tokenType = TokenType::semi;
             BufPtr++;
-            tok.content = llvm::StringRef(start, 1);
+            tok.ptr = StartPtr;
+            tok.len = 1;
             break;
         }
         case '(':
         {
             tok.tokenType = TokenType::l_parent;
             BufPtr++;
-            tok.content = llvm::StringRef(start, 1);
+            tok.ptr = StartPtr;
+            tok.len = 1;
             break;
         }
         case ')':
         {
             tok.tokenType = TokenType::r_parent;
             BufPtr++;
-            tok.content = llvm::StringRef(start, 1);
+            tok.ptr = StartPtr;
+            tok.len = 1;
             break;
         }
         case '=':
         {
             tok.tokenType = TokenType::equal;
             BufPtr++;
-            tok.content = llvm::StringRef(start, 1);
+            tok.ptr = StartPtr;
+            tok.len = 1;
             break;
         }
         case ',':
         {
             tok.tokenType = TokenType::comma;
             BufPtr++;
-            tok.content = llvm::StringRef(start, 1);
+            tok.ptr = StartPtr;
+            tok.len = 1;
             break;
         }
         default:
         {
-            tok.tokenType = TokenType::unknown;
+            // llvm::errs() << "unknow char" << *BufPtr << "\n";
+            diagEngine.Report(llvm::SMLoc::getFromPointer(BufPtr), diag::err_unknown_char, *BufPtr);
             break;
-            tok.content = llvm::StringRef(start, 1);
         }
         }
     }
+}
+
+void Lexer::SaveState()
+{
+    state.BufPtr = BufPtr;
+    state.LineHeadPtr = LineHeadPtr;
+    state.BufEnd = BufEnd;
+    state.row = row;
+}
+
+void Lexer::RestoreState()
+{
+    BufPtr = state.BufPtr;
+    BufEnd = state.BufEnd;
+    LineHeadPtr = state.LineHeadPtr;
+    row = state.row;
 }

@@ -19,7 +19,8 @@ llvm::Value *PrintVisitor::VisitVariableDecl(VariableDecl *decl)
 {
     if (decl->ty == CType::GetIntTy())
     {
-        llvm::outs() << "int " << decl->name << ";";
+        llvm::StringRef text(decl->tok.ptr, decl->tok.len);
+        llvm::outs() << "int " << text << ";";
     }
     return nullptr;
 }
@@ -58,12 +59,12 @@ llvm::Value *PrintVisitor::VisitBinaryExpr(BinaryExpr *binaryexpr)
 
 llvm::Value *PrintVisitor::VisitNumberExpr(NumberExpr *numberExpr)
 {
-    llvm::outs() << numberExpr->number;
+    llvm::outs() << llvm::StringRef(numberExpr->tok.ptr, numberExpr->tok.len);
     return nullptr;
 }
 
 llvm::Value *PrintVisitor::VisitVariableAccessExpr(VariableAccessExpr *variableAccessExpr)
 {
-    llvm::outs() << variableAccessExpr->name;
+    llvm::outs() << llvm::StringRef(variableAccessExpr->tok.ptr, variableAccessExpr->tok.len);
     return nullptr;
 }
