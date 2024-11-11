@@ -11,7 +11,7 @@ list(APPEND CMAKE_MODULE_PATH ${LLVM_CMAKE_DIR})
 
 include(AddLLVM)
 
-include_directories("${LLVM_BINARY_DIR}/include" "${LLVM_INCLUDE_DIR}")
+include_directories( . "${LLVM_BINARY_DIR}/include" "${LLVM_INCLUDE_DIR}")
 add_definitions(${LLVM_DEFINITIONS})
 
 if (NOT ${LLVM_ENABLE_RTTI})
@@ -21,5 +21,6 @@ endif()
 
 set(LLVM_LINK_COMPONENTS Support Core)
 
-add_llvm_executable(${PROJECT_NAME} main.cc lexer.cc parser.cc 
-printVisitor.cc codegen.cc type.cc scope.cc sema.cc diag_engine.cc)
+add_llvm_executable(${PROJECT_NAME} main.cc lexer.cc parser.cc printVisitor.cc codegen.cc type.cc scope.cc sema.cc diag_engine.cc)
+
+add_subdirectory(unittest)
