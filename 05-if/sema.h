@@ -25,6 +25,11 @@ public:
     std::shared_ptr<AstNode> SemaAssignExprNode(std::shared_ptr<AstNode> left, std::shared_ptr<AstNode> right, Token tok);
     // 二元运算传入左右和操作数即可
     std::shared_ptr<AstNode> SemaBinaryExprNode(std::shared_ptr<AstNode> left, std::shared_ptr<AstNode> right, OpCode op);
+    // 语义检查if
+    std::shared_ptr<AstNode> SemaIfStmtNode(std::shared_ptr<AstNode> condNode, std::shared_ptr<AstNode> thenNode, std::shared_ptr<AstNode> elseNode);
+    //
+    void EnterScope();
+    void ExitScope();
 
 private:
     Scope scope;

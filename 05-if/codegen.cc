@@ -45,13 +45,22 @@ llvm::Value *CodeGen::VisitProgram(Program *p)
     auto mFunc = Function::Create(mFunctionType, GlobalValue::ExternalLinkage, "main", module.get());
     BasicBlock *entryBB = BasicBlock::Create(context, "entry", mFunc);
     irBuilder.SetInsertPoint(entryBB);
+    // 记录一下当前函数
+    curFunc = mFunc;
 
     llvm::Value *lastVal = nullptr;
-    for (auto &expr : p->expVec)
+    for (auto &node : p->nodeVec)
     {
-        lastVal = expr->Accept(this);
+        lastVal = node->Accept(this);
     }
-    irBuilder.CreateCall(printFunc, {irBuilder.CreateGlobalStringPtr("expr val:%d\n"), lastVal});
+    if (lastVal)
+    {
+        irBuilder.CreateCall(printFunc, {irBuilder.CreateGlobalStringPtr("expr val:%d\n"), lastVal});
+    }
+    else
+    {
+        irBuilder.CreateCall(printFunc, {irBuilder.CreateGlobalStringPtr("last inst is not expr val!!!")});
+    }
 
     // 返回指令
     llvm::Value *ret = irBuilder.CreateRet(irBuilder.getInt32(0));
@@ -92,6 +101,75 @@ llvm::Value *CodeGen::VisitBinaryExpr(BinaryExpr *binaryexpr)
 llvm::Value *CodeGen::VisitNumberExpr(NumberExpr *numberExpr)
 {
     return irBuilder.getInt32(numberExpr->tok.value);
+}
+llvm::Value *CodeGen::VisitDeclStmt(DeclStmt *p)
+{
+    llvm::Value *lastVal = nullptr;
+    for (const auto &node : p->nodeVec)
+    {
+        lastVal = node->Accept(this);
+    }
+    return lastVal;
+}
+
+llvm::Value *CodeGen::VisitBlockStmt(BlockStmt *p)
+{
+    llvm::Value *lastVal = nullptr;
+    for (const auto &stmt : p->nodeVec)
+    {
+        lastVal = stmt->Accept(this);
+    }
+
+    return lastVal;
+}
+
+// 划分基本块
+llvm::Value *CodeGen::VisitIfStmt(IfStmt *p)
+{
+    llvm::BasicBlock *condBB = llvm::BasicBlock::Create(context, "cond", curFunc);
+    llvm::BasicBlock *thenBB = llvm::BasicBlock::Create(context, "then", curFunc);
+    llvm::BasicBlock *elseBB = nullptr;
+    if (p->elseNode)
+    {
+        elseBB = llvm::BasicBlock::Create(context, "else", curFunc);
+    }
+    llvm::BasicBlock *lastBB = llvm::BasicBlock::Create(context, "last", curFunc);
+
+    // 无条件跳转，llvm不会自动跳转的
+    irBuilder.CreateBr(condBB);
+
+    irBuilder.SetInsertPoint(condBB);
+    llvm::Value *val = p->condNode->Accept(this);
+    /// 整型比较指令
+    llvm::Value *condVal = irBuilder.CreateICmpNE(val, irBuilder.getInt32(0));
+    if (p->elseNode)
+    {
+        // else存在的情况下
+        irBuilder.CreateCondBr(condVal, thenBB, elseBB);
+
+        // 创建thenbb
+        irBuilder.SetInsertPoint(thenBB);
+        p->thenNode->Accept(this);
+        irBuilder.CreateBr(lastBB);
+        // 创建else
+        irBuilder.SetInsertPoint(elseBB);
+        p->elseNode->Accept(this);
+        irBuilder.CreateBr(lastBB);
+    }
+    // else不存在的情况
+    else
+    {
+        irBuilder.CreateCondBr(condVal, thenBB, lastBB);
+
+        // 创建thenbb
+        irBuilder.SetInsertPoint(thenBB);
+        p->thenNode->Accept(this);
+        irBuilder.CreateBr(lastBB);
+    }
+
+    irBuilder.SetInsertPoint(lastBB);
+
+    return nullptr;
 }
 
 llvm::Value *CodeGen::VisitVariableDecl(VariableDecl *decl)

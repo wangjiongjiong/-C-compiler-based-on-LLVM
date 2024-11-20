@@ -131,6 +131,14 @@ void Lexer::NextToken(Token &tok)
         {
             tok.tokenType = TokenType::kw_int;
         }
+        else if (text == "if")
+        {
+            tok.tokenType = TokenType::kw_if;
+        }
+        else if (text == "else")
+        {
+            tok.tokenType = TokenType::kw_else;
+        }
     }
     else
     {
@@ -203,6 +211,22 @@ void Lexer::NextToken(Token &tok)
         case ',':
         {
             tok.tokenType = TokenType::comma;
+            BufPtr++;
+            tok.ptr = StartPtr;
+            tok.len = 1;
+            break;
+        }
+        case '{':
+        {
+            tok.tokenType = TokenType::l_brace;
+            BufPtr++;
+            tok.ptr = StartPtr;
+            tok.len = 1;
+            break;
+        }
+        case '}':
+        {
+            tok.tokenType = TokenType::r_brace;
             BufPtr++;
             tok.ptr = StartPtr;
             tok.len = 1;

@@ -23,6 +23,9 @@ public:
 
 private:
     llvm::Value *VisitProgram(Program *p) override;
+    llvm::Value *VisitBlockStmt(BlockStmt *p) override;
+    llvm::Value *VisitIfStmt(IfStmt *p) override;
+    llvm::Value *VisitDeclStmt(DeclStmt *p) override;
     llvm::Value *VisitVariableDecl(VariableDecl *decl);
     llvm::Value *VisitAssignExpr(AssignExpr *expr);
     llvm::Value *VisitNumberExpr(NumberExpr *numberExpr);
@@ -34,6 +37,7 @@ private:
     llvm::LLVMContext context;
     llvm::IRBuilder<> irBuilder{context};
     std::shared_ptr<llvm::Module> module;
+    llvm::Function *curFunc{nullptr};
 
     // 记录变量的地址
     llvm::StringMap<std::pair<llvm::Value *, llvm::Type *>> varAddrTypeMap;

@@ -87,3 +87,21 @@ std::shared_ptr<AstNode> Sema::SemaNumberExprNode(Token tok, CType *ty)
 
     return factor;
 }
+
+std::shared_ptr<AstNode> Sema::SemaIfStmtNode(std::shared_ptr<AstNode> condNode, std::shared_ptr<AstNode> thenNode, std::shared_ptr<AstNode> elseNode)
+{
+    auto node = std::make_shared<IfStmt>();
+    node->condNode = condNode;
+    node->thenNode = thenNode;
+    node->elseNode = elseNode;
+    return node;
+}
+
+void Sema::EnterScope()
+{
+    scope.EnterScope();
+}
+void Sema::ExitScope()
+{
+    scope.ExitScope();
+}

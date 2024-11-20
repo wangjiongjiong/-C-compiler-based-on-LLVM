@@ -7,9 +7,44 @@ PrintVisitor::PrintVisitor(std::shared_ptr<Program> program)
 
 llvm::Value *PrintVisitor::VisitProgram(Program *p)
 {
-    for (auto &expr : p->expVec)
+    for (auto &node : p->nodeVec)
     {
-        expr->Accept(this);
+        node->Accept(this);
+        llvm::outs() << "\n";
+    }
+    return nullptr;
+}
+
+llvm::Value *PrintVisitor::VisitBlockStmt(BlockStmt *p)
+{
+    llvm::outs() << "\n{\n";
+    for (const auto &stmt : p->nodeVec)
+    {
+        stmt->Accept(this);
+        llvm::outs() << "\n";
+    }
+    llvm::outs() << "}";
+    return nullptr;
+}
+
+llvm::Value *PrintVisitor::VisitIfStmt(IfStmt *p)
+{
+    llvm::outs() << "if (";
+    p->condNode->Accept(this);
+    llvm::outs() << ")";
+    p->thenNode->Accept(this);
+    if (p->elseNode)
+    {
+        llvm::outs() << "\nelse";
+        p->elseNode->Accept(this);
+    }
+    return nullptr;
+}
+llvm::Value *PrintVisitor::VisitDeclStmt(DeclStmt *p)
+{
+    for (auto &node : p->nodeVec)
+    {
+        node->Accept(this);
         llvm::outs() << "\n";
     }
     return nullptr;

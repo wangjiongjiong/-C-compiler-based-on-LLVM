@@ -2,9 +2,10 @@
 
 /*
 prog : stmt*
-stmt : decl-stmt | expr-stmt | null-stmt
+stmt : decl-stmt | expr-stmt | null-stmt | if-stmt
 null-stmt : ";"
 decl-stmt : "int" identifier ("," identifier (= expr)?)* ";"
+if-stmt : "if" "(" expr ")" stmt ( "else" stmt )?
 expr-stmt : expr ";"
 expr : assign-expr | add-expr
 assign-expr: identifier "=" expr
@@ -21,53 +22,80 @@ std::shared_ptr<Program> Parser::ParseProgram()
     // 循环parser然后当tok为eof其实就是走到最后了然后结束
     // 其实程序就是由很多个表达式组成的因此这个vector就是用来
     // 存储多个表达式的
-    std::vector<std::shared_ptr<AstNode>> exprVec;
+    std::vector<std::shared_ptr<AstNode>> nodeVec;
     while (tok.tokenType != TokenType::eof)
     {
-        /// 处理null语句
-
-        // 是分号就找到下一位然后继续即可，表明当前的expr结束了
-        if (tok.tokenType == TokenType::semi)
+        auto stmt = ParseStmt();
+        if (stmt)
         {
-            Advance();
-            continue;
-        }
-        /// 处理声明语句
-        // 遇到int就是变量声明了
-        if (tok.tokenType == TokenType::kw_int)
-        {
-            const auto &exprs = ParserDeclStmt();
-            for (auto &expr : exprs)
-            {
-                exprVec.push_back(expr);
-            }
-        }
-        else
-        {
-            /// 处理表达式语句
-            // parser 一个expr然后加入到数组里
-            auto expr = ParseExprStmt();
-            exprVec.push_back(expr);
+            nodeVec.push_back(stmt);
         }
     }
     // 这里其实用的是智能指针的拷贝构造函数
-    // 用move将exprVec直接拷贝过去
+    // 用move将nodeVec直接拷贝过去
     auto program = std::make_shared<Program>();
-    program->expVec = std::move(exprVec);
+    program->nodeVec = std::move(nodeVec);
     return program;
 }
 
+std::shared_ptr<AstNode> Parser::ParseStmt()
+{
+    /// 处理null语句
+
+    // 是分号就找到下一位然后继续即可，表明当前的expr结束了
+    if (tok.tokenType == TokenType::semi)
+    {
+        Advance();
+        return nullptr;
+    }
+    /// 处理声明语句
+    // 遇到int就是变量声明了
+    if (tok.tokenType == TokenType::kw_int)
+    {
+        return ParserDeclStmt();
+    }
+    // if stmt
+    else if (tok.tokenType == TokenType::kw_if)
+    {
+        return ParseIfStmt();
+    }
+    // block stmt
+    else if (tok.tokenType == TokenType::l_brace)
+    {
+        return ParseBlockStmt();
+    }
+    else
+    {
+        /// 处理表达式语句
+        // parser 一个expr然后加入到数组里
+        return ParseExprStmt();
+    }
+}
+
+std::shared_ptr<AstNode> Parser::ParseBlockStmt()
+{
+    sema.EnterScope();
+    auto blockStmt = std::make_shared<BlockStmt>();
+    Consume(TokenType::l_brace);
+    while (tok.tokenType != TokenType::r_brace)
+    {
+        blockStmt->nodeVec.push_back(ParseStmt());
+    }
+    Consume(TokenType::r_brace);
+    sema.ExitScope();
+
+    return blockStmt;
+}
+
 // parser 声明语句
-std::vector<std::shared_ptr<AstNode>> Parser::ParserDeclStmt()
+std::shared_ptr<AstNode> Parser::ParserDeclStmt()
 {
     // 先直接消耗int
     Consume(TokenType::kw_int);
     CType *baseTy = CType::GetIntTy();
 
-    // 最后直接存到vector中
-    std::vector<std::shared_ptr<AstNode>> astArr;
+    auto decl = std::make_shared<DeclStmt>();
     /// int a ,b = 3;
-
     // a, b = 3;
     int i = 0;
     // 没有遇到；就一直parser
@@ -83,7 +111,7 @@ std::vector<std::shared_ptr<AstNode>> Parser::ParserDeclStmt()
         //  int a = 3; => int a; a = 3;
         //  语义分析
         auto variableDecl = sema.SemaVariableDeclNode(temp, baseTy);
-        astArr.push_back(variableDecl);
+        decl->nodeVec.push_back(variableDecl);
 
         Consume(TokenType::identifier);
         // 遇到了=就是要赋值
@@ -96,11 +124,11 @@ std::vector<std::shared_ptr<AstNode>> Parser::ParserDeclStmt()
             auto right = ParseExpr();
             // 语义分析
             auto assignExpr = sema.SemaAssignExprNode(left, right, optoken);
-            astArr.push_back(assignExpr);
+            decl->nodeVec.push_back(assignExpr);
         }
     }
     Consume(TokenType::semi);
-    return astArr;
+    return decl;
 }
 
 // 表达式语句
@@ -111,6 +139,25 @@ std::shared_ptr<AstNode> Parser::ParseExprStmt()
     return expr;
 }
 
+// If语句
+// if-stmt : "if" "(" expr ")" stmt ( "else" stmt )?
+std::shared_ptr<AstNode> Parser::ParseIfStmt()
+{
+
+    Consume(TokenType::kw_if);
+    Consume(TokenType::l_parent);
+    auto condExpr = ParseExpr();
+    Consume(TokenType::r_parent);
+    auto thenstmt = ParseStmt();
+    std::shared_ptr<AstNode> elseStmt = nullptr;
+    // 判断是否是else
+    if (tok.tokenType == TokenType::kw_else)
+    {
+        Consume(TokenType::kw_else);
+        elseStmt = ParseStmt();
+    }
+    return sema.SemaIfStmtNode(condExpr, thenstmt, elseStmt);
+}
 // 左结合
 /*
 expr : assign-expr | add-expr

@@ -22,6 +22,10 @@ public:
     std::shared_ptr<Program> ParseProgram();
 
 private:
+    // parser Stmt
+    std::shared_ptr<AstNode> ParseStmt();
+    // parser 块语句也就是{}
+    std::shared_ptr<AstNode> ParseBlockStmt();
     // parser 赋值表达式
     std::shared_ptr<AstNode> ParseAssignExpr();
     // parser表达式
@@ -31,9 +35,11 @@ private:
     // parser factor
     std::shared_ptr<AstNode> ParseFactor();
     // parser 声明语句 --- 经过修改的文法都是由语句构成的
-    std::vector<std::shared_ptr<AstNode>> ParserDeclStmt();
+    std::shared_ptr<AstNode> ParserDeclStmt();
     // parser Expr语句
     std::shared_ptr<AstNode> ParseExprStmt();
+    // parser If语句
+    std::shared_ptr<AstNode> ParseIfStmt();
 
     // 消费 token的函数
     // 检测当前token是否是该类型，不会消费

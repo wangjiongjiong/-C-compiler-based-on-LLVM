@@ -11,6 +11,8 @@ enum class TokenType
     number,     // 数字
     identifier, // 标识符
     kw_int,     // int
+    kw_if,      // if
+    kw_else,    // else
     minus,      // -
     plus,       // +
     star,       // *
@@ -20,6 +22,8 @@ enum class TokenType
     semi,       // ";"
     equal,      // =
     comma,      // ,
+    l_brace,    // {
+    r_brace,    // }
     eof         // end
 };
 

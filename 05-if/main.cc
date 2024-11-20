@@ -35,15 +35,11 @@ int main(int argc, char *argv[])
     while (true)
     {
         lexer.NextToken(tok);
-        if (tok.tokenType != TokenType::eof)
-        {
-            tok.Dump();
-        }
-        else
-        {
+        if (tok.tokenType == TokenType::eof)
             break;
-        }
+        tok.Dump();
     } */
+
     Sema sema(diagEngine);
     Parser parser(lexer, sema);
     auto program = parser.ParseProgram();
