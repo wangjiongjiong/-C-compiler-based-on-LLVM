@@ -2,18 +2,24 @@
 
 /*
 prog : stmt*
-stmt : decl-stmt | expr-stmt | null-stmt | if-stmt
+stmt : decl-stmt | expr-stmt | null-stmt | if-stmt | block-stmt | for-stmt
 null-stmt : ";"
 decl-stmt : "int" identifier ("," identifier (= expr)?)* ";"
 if-stmt : "if" "(" expr ")" stmt ( "else" stmt )?
+for-stmt : "for" "(" expr? ";" expr? ";" expr? ")" stmt
+        "for" "(" decl-stmt expr? ";" expr? ")" stmt
+block-stmt: "{" stmt* "}"
 expr-stmt : expr ";"
-expr : assign-expr | add-expr
+expr : assign-expr | equal-expr
 assign-expr: identifier "=" expr
+equal-expr : relational-expr (("==" | "!=") relational-expr)*
+relational-expr: add-expr (("<"|">"|"<="|">=") add-expr)*
 add-expr : mult-expr (("+" | "-") mult-expr)*
 mult-expr : primary-expr (("*" | "/") primary-expr)*
 primary-expr : identifier | number | "(" expr ")"
 number: ([0-9])+
 identifier : (a-zA-Z_)(a-zA-Z0-9_)*
+
 */
 
 std::shared_ptr<Program> Parser::ParseProgram()
@@ -38,6 +44,7 @@ std::shared_ptr<Program> Parser::ParseProgram()
     return program;
 }
 
+// 语句分发，其实所有语句都是从此而来的
 std::shared_ptr<AstNode> Parser::ParseStmt()
 {
     /// 处理null语句
@@ -49,7 +56,7 @@ std::shared_ptr<AstNode> Parser::ParseStmt()
     }
     /// 处理声明语句
     // 遇到int就是变量声明了
-    if (tok.tokenType == TokenType::kw_int)
+    if (IsTypeName())
     {
         return ParserDeclStmt();
     }
@@ -62,6 +69,21 @@ std::shared_ptr<AstNode> Parser::ParseStmt()
     else if (tok.tokenType == TokenType::l_brace)
     {
         return ParseBlockStmt();
+    }
+    // for stmt
+    else if (tok.tokenType == TokenType::kw_for)
+    {
+        return ParseForStmt();
+    }
+    // break stmt
+    else if (tok.tokenType == TokenType::kw_break)
+    {
+        return ParseBreakStmt();
+    }
+    // continue stmt
+    else if (tok.tokenType == TokenType::kw_continue)
+    {
+        return ParseContinueStmt();
     }
     else
     {
@@ -148,6 +170,90 @@ std::shared_ptr<AstNode> Parser::ParseBlockStmt()
     sema.ExitScope();
 
     return blockStmt;
+}
+
+std::shared_ptr<AstNode> Parser::ParseForStmt()
+{
+    Consume(TokenType::kw_for);
+    Consume(TokenType::l_parent);
+    // 这里要新开一个环境因为for
+    sema.EnterScope();
+    auto node = std::make_shared<ForStmt>();
+
+    // 存储break和continue是为了说明只有在for和switch内部才能使用break和continue
+    breakNodes.push_back(node);
+    continueNodes.push_back(node);
+
+    std::shared_ptr<AstNode> initNode = nullptr;
+    std::shared_ptr<AstNode> condNode = nullptr;
+    std::shared_ptr<AstNode> incNode = nullptr;
+    std::shared_ptr<AstNode> bodyNode = nullptr;
+
+    if (IsTypeName())
+    {
+        initNode = ParserDeclStmt();
+    }
+    else
+    {
+        if (tok.tokenType != TokenType::semi)
+        {
+            initNode = ParseExpr();
+        }
+        Consume(TokenType::semi);
+    }
+
+    if (tok.tokenType != TokenType::semi)
+    {
+        condNode = ParseExpr();
+    }
+    Consume(TokenType::semi);
+    if (tok.tokenType != TokenType::r_parent)
+    {
+        incNode = ParseExpr();
+    }
+    Consume(TokenType::r_parent);
+    bodyNode = ParseStmt();
+
+    node->initNode = initNode;
+    node->condNode = condNode;
+    node->incNode = incNode;
+    node->bodyNode = bodyNode;
+
+    // 循环结束要把break，continue中的节点pop掉
+    breakNodes.pop_back();
+    continueNodes.pop_back();
+
+    sema.ExitScope();
+
+    return node;
+}
+
+std::shared_ptr<AstNode> Parser::ParseBreakStmt()
+{
+    if (breakNodes.size() == 0)
+    {
+        GetDiagEngine().Report(llvm::SMLoc::getFromPointer(tok.ptr), diag::err_break_stmt);
+    }
+    Consume(TokenType::kw_break);
+    Consume(TokenType::semi);
+    auto node = std::make_shared<BreakStmt>();
+    // target需要记录下来
+    node->target = breakNodes.back();
+    return node;
+}
+
+std::shared_ptr<AstNode> Parser::ParseContinueStmt()
+{
+    if (continueNodes.size() == 0)
+    {
+        GetDiagEngine().Report(llvm::SMLoc::getFromPointer(tok.ptr), diag::err_continue_stmt);
+    }
+    Consume(TokenType::kw_continue);
+    Consume(TokenType::semi);
+    auto node = std::make_shared<ContinueStmt>();
+    // target需要记录下来
+    node->target = continueNodes.back();
+    return node;
 }
 
 std::shared_ptr<AstNode> Parser::ParseExprStmt()
@@ -385,4 +491,13 @@ bool Parser::Consume(TokenType tokenType)
 void Parser::Advance()
 {
     lexer.NextToken(tok);
+}
+
+bool Parser::IsTypeName()
+{
+    if (tok.tokenType == TokenType::kw_int)
+    {
+        return true;
+    }
+    return false;
 }

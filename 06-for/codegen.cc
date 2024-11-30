@@ -186,6 +186,96 @@ llvm::Value *CodeGen::VisitIfStmt(IfStmt *p)
     return nullptr;
 }
 
+llvm::Value *CodeGen::VisitForStmt(ForStmt *p)
+{
+    // 定义五个基本块
+    // 初始化基本块
+    llvm::BasicBlock *initBB = llvm::BasicBlock::Create(context, "for,init", curFunc);
+    // 条件基本块
+    llvm::BasicBlock *condBB = llvm::BasicBlock::Create(context, "for,cond", curFunc);
+    // inc基本块
+    llvm::BasicBlock *incBB = llvm::BasicBlock::Create(context, "for,inc", curFunc);
+    // body基本快
+    llvm::BasicBlock *bodyBB = llvm::BasicBlock::Create(context, "for,body", curFunc);
+    // last基本块
+    llvm::BasicBlock *lastBB = llvm::BasicBlock::Create(context, "for,last", curFunc);
+
+    breakBBs.insert({p, lastBB});
+    continueBBs.insert({p, incBB});
+
+    // init 块
+    irBuilder.CreateBr(initBB);
+    irBuilder.SetInsertPoint(initBB);
+    if (p->initNode)
+    {
+        p->initNode->Accept(this);
+    }
+    // 构建条件块
+    irBuilder.CreateBr(condBB);
+    irBuilder.SetInsertPoint(condBB);
+    if (p->condNode)
+    {
+        llvm::Value *val = p->condNode->Accept(this);
+        // 返回的是一个字节的值
+        llvm::Value *condval = irBuilder.CreateICmpNE(val, irBuilder.getInt32(0));
+        // 条件成功跳转到bodybb
+        irBuilder.CreateCondBr(condval, bodyBB, lastBB);
+    }
+    else
+    {
+        // 无条件得话直接跳转
+        irBuilder.CreateBr(bodyBB);
+    }
+    // 插入body块
+    irBuilder.SetInsertPoint(bodyBB);
+    if (p->bodyNode)
+    {
+        p->bodyNode->Accept(this);
+    }
+    // 循环条件块
+    irBuilder.CreateBr(incBB);
+    irBuilder.SetInsertPoint(incBB);
+    if (p->incNode)
+    {
+        p->incNode->Accept(this);
+    }
+    irBuilder.CreateBr(condBB);
+
+    breakBBs.erase(p);
+    continueBBs.erase(p);
+    irBuilder.SetInsertPoint(lastBB);
+
+    return nullptr;
+}
+
+llvm::Value *CodeGen::VisitBreakStmt(BreakStmt *p)
+{
+    /// 生成一个跳转指令，跳转到last中
+    // jump lastBB
+    llvm::BasicBlock *bb = breakBBs[p->target.get()];
+    irBuilder.CreateBr(bb);
+
+    // 无效的块指令
+    llvm::BasicBlock *out = llvm::BasicBlock::Create(context, "for.break.death", curFunc);
+    irBuilder.SetInsertPoint(out);
+
+    return nullptr;
+}
+
+llvm::Value *CodeGen::VisitContinueStmt(ContinueStmt *p)
+{
+    /// 生成一个跳转指令，跳转到inc中
+    // jump incBB
+    llvm::BasicBlock *bb = continueBBs[p->target.get()];
+    irBuilder.CreateBr(bb);
+
+    // 无效的块指令
+    llvm::BasicBlock *out = llvm::BasicBlock::Create(context, "for.continue.death", curFunc);
+    irBuilder.SetInsertPoint(out);
+
+    return nullptr;
+}
+
 llvm::Value *CodeGen::VisitVariableDecl(VariableDecl *decl)
 {
 
@@ -218,6 +308,7 @@ llvm::Value *CodeGen::VisitAssignExpr(AssignExpr *expr)
     irBuilder.CreateStore(rightvalue, leftvarAddr);
     return irBuilder.CreateLoad(ty, leftvarAddr, text);
 }
+
 llvm::Value *CodeGen::VisitVariableAccessExpr(VariableAccessExpr *variableAccessExpr)
 {
     llvm::StringRef text(variableAccessExpr->tok.ptr, variableAccessExpr->tok.len);

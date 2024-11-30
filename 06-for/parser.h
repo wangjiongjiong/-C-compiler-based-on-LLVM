@@ -5,11 +5,15 @@
 
 /*
 prog : stmt*
-stmt : decl-stmt | expr-stmt | null-stmt | if-stmt | block-stmt
+stmt : decl-stmt | expr-stmt | null-stmt | if-stmt | block-stmt | for-stmt | break-stmt | continue-stmt
 null-stmt : ";"
 decl-stmt : "int" identifier ("," identifier (= expr)?)* ";"
 if-stmt : "if" "(" expr ")" stmt ( "else" stmt )?
+for-stmt : "for" "(" expr? ";" expr? ";" expr? ")" stmt
+        "for" "(" decl-stmt expr? ";" expr? ")" stmt
 block-stmt: "{" stmt* "}"
+break-stmt: "break" ";"
+continue-stmt: "continue" ";"
 expr-stmt : expr ";"
 expr : assign-expr | equal-expr
 assign-expr: identifier "=" expr
@@ -30,6 +34,8 @@ private:
     // 而lex其本质就是每次调用nexttoken用来解析token
     Lexer &lexer;
     Sema &sema;
+    std::vector<std::shared_ptr<AstNode>> breakNodes;
+    std::vector<std::shared_ptr<AstNode>> continueNodes;
 
 public:
     Parser(Lexer &lexer, Sema &sema) : lexer(lexer), sema(sema)
@@ -45,6 +51,9 @@ private:
     std::shared_ptr<AstNode> ParserDeclStmt();      // parser 声明语句 --- 经过修改的文法都是由语句构成的
     std::shared_ptr<AstNode> ParseIfStmt();         // parser If语句
     std::shared_ptr<AstNode> ParseBlockStmt();      // parser 块语句也就是{}
+    std::shared_ptr<AstNode> ParseForStmt();        // parser for语句
+    std::shared_ptr<AstNode> ParseBreakStmt();      // parser break语句
+    std::shared_ptr<AstNode> ParseContinueStmt();   // parser continue语句
     std::shared_ptr<AstNode> ParseExprStmt();       // parser Expr语句
     std::shared_ptr<AstNode> ParseExpr();           // parser表达式
     std::shared_ptr<AstNode> ParseAssignExpr();     // parser 赋值表达式
@@ -53,6 +62,9 @@ private:
     std::shared_ptr<AstNode> ParseAddExpr();        // parser 加号表达式
     std::shared_ptr<AstNode> ParseMultiExpr();      // parser 乘号表达式
     std::shared_ptr<AstNode> ParsePrimary();        // parser factor
+
+    bool IsTypeName(); // 判断类型
+
     // 消费 token的函数
     // 检测当前token是否是该类型，不会消费
     bool Expect(TokenType tokenType);

@@ -11,13 +11,20 @@
 
 /*
 prog : stmt*
-stmt : decl-stmt | expr-stmt | null-stmt | if-stmt
+stmt : decl-stmt | expr-stmt | null-stmt | if-stmt | block-stmt | for-stmt | break-stmt | continue-stmt
 null-stmt : ";"
 decl-stmt : "int" identifier ("," identifier (= expr)?)* ";"
 if-stmt : "if" "(" expr ")" stmt ( "else" stmt )?
+for-stmt : "for" "(" expr? ";" expr? ";" expr? ")" stmt
+        "for" "(" decl-stmt expr? ";" expr? ")" stmt
+block-stmt: "{" stmt* "}"
+break-stmt: "break" ";"
+continue-stmt: "continue" ";"
 expr-stmt : expr ";"
-expr : assign-expr | add-expr
+expr : assign-expr | equal-expr
 assign-expr: identifier "=" expr
+equal-expr : relational-expr (("==" | "!=") relational-expr)*
+relational-expr: add-expr (("<"|">"|"<="|">=") add-expr)*
 add-expr : mult-expr (("+" | "-") mult-expr)*
 mult-expr : primary-expr (("*" | "/") primary-expr)*
 primary-expr : identifier | number | "(" expr ")"
@@ -34,6 +41,9 @@ class BinaryExpr;
 class IfStmt;
 class DeclStmt;
 class BlockStmt;
+class ForStmt;
+class BreakStmt;
+class ContinueStmt;
 
 class Visitor
 {
@@ -42,6 +52,9 @@ public:
     virtual llvm::Value *VisitProgram(Program *p) = 0;
     virtual llvm::Value *VisitIfStmt(IfStmt *p) = 0;
     virtual llvm::Value *VisitBlockStmt(BlockStmt *p) = 0;
+    virtual llvm::Value *VisitForStmt(ForStmt *p) = 0;
+    virtual llvm::Value *VisitBreakStmt(BreakStmt *p) = 0;
+    virtual llvm::Value *VisitContinueStmt(ContinueStmt *p) = 0;
     virtual llvm::Value *VisitDeclStmt(DeclStmt *p) = 0;
     virtual llvm::Value *VisitVariableDecl(VariableDecl *decl) = 0;
     virtual llvm::Value *VisitAssignExpr(AssignExpr *expr) = 0;
@@ -62,6 +75,9 @@ public:
         ND_DeclStmt,
         ND_BlockStmt,
         ND_IfStmt,
+        ND_ForStmt,
+        ND_BreakStmt,
+        ND_ContinueStmt,
         ND_VariableDecl,
         ND_BinaryExpr,
         ND_NumberFactor,
@@ -133,6 +149,63 @@ public:
     static bool classof(const AstNode *node)
     {
         return node->Getkind() == ND_IfStmt;
+    }
+};
+
+class ForStmt : public AstNode
+{
+
+public:
+    std::shared_ptr<AstNode> initNode;
+    std::shared_ptr<AstNode> condNode;
+    std::shared_ptr<AstNode> incNode;
+    std::shared_ptr<AstNode> bodyNode;
+
+public:
+    ForStmt() : AstNode(ND_ForStmt) {}
+    llvm::Value *Accept(Visitor *v) override
+    {
+        return v->VisitForStmt(this);
+    }
+    static bool classof(const AstNode *node)
+    {
+        return node->Getkind() == ND_ForStmt;
+    }
+};
+
+class BreakStmt : public AstNode
+{
+
+public:
+    std::shared_ptr<AstNode> target;
+
+public:
+    BreakStmt() : AstNode(ND_BreakStmt) {}
+    llvm::Value *Accept(Visitor *v) override
+    {
+        return v->VisitBreakStmt(this);
+    }
+    static bool classof(const AstNode *node)
+    {
+        return node->Getkind() == ND_BreakStmt;
+    }
+};
+
+class ContinueStmt : public AstNode
+{
+
+public:
+    std::shared_ptr<AstNode> target;
+
+public:
+    ContinueStmt() : AstNode(ND_ContinueStmt) {}
+    llvm::Value *Accept(Visitor *v) override
+    {
+        return v->VisitContinueStmt(this);
+    }
+    static bool classof(const AstNode *node)
+    {
+        return node->Getkind() == ND_ContinueStmt;
     }
 };
 

@@ -9,6 +9,8 @@ DIAG(err_unknown_char, Error, "unknown char '{0}'")
 // parser
 
 DIAG(err_expected, Error, "expected {0},but found {1}")
+DIAG(err_break_stmt, Error, "break statement not in loop")
+DIAG(err_continue_stmt, Error, "break statement not in loop")
 
 // sema
 

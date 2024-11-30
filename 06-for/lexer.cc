@@ -1,26 +1,26 @@
 #include "lexer.h"
 
-/* number,         // 数字
-    identifier, // 标识符
-    kw_int,     // int
-    minus,      // -
-    plus,       // +
-    star,       // *
-    slash,      // "/"
-    l_parent,   // "("
-    r_parent,   // ")"
-    semi,       // ";"
-    equal,      // =
-    comma,      // ,
-    eof         // end
-*/
-
 llvm::StringRef Token::GetSpellingText(TokenType tokenType)
 {
     switch (tokenType)
     {
     case TokenType::kw_int:
         return "int";
+
+    case TokenType::kw_if:
+        return "if";
+
+    case TokenType::kw_else:
+        return "else";
+
+    case TokenType::kw_for:
+        return "for";
+
+    case TokenType::kw_break:
+        return "break";
+
+    case TokenType::kw_continue:
+        return "continue";
 
     case TokenType::minus:
         return "-";
@@ -162,6 +162,18 @@ void Lexer::NextToken(Token &tok)
         else if (text == "else")
         {
             tok.tokenType = TokenType::kw_else;
+        }
+        else if (text == "for")
+        {
+            tok.tokenType = TokenType::kw_for;
+        }
+        else if (text == "break")
+        {
+            tok.tokenType = TokenType::kw_break;
+        }
+        else if (text == "continue")
+        {
+            tok.tokenType = TokenType::kw_continue;
         }
     }
     else

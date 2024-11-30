@@ -40,6 +40,44 @@ llvm::Value *PrintVisitor::VisitIfStmt(IfStmt *p)
     }
     return nullptr;
 }
+
+llvm::Value *PrintVisitor::VisitForStmt(ForStmt *p)
+{
+    llvm::outs() << "for (";
+    if (p->initNode)
+    {
+        p->initNode->Accept(this);
+    }
+    llvm::outs() << ";";
+    if (p->condNode)
+    {
+        p->condNode->Accept(this);
+    }
+    llvm::outs() << ";";
+    if (p->incNode)
+    {
+        p->incNode->Accept(this);
+    }
+    llvm::outs() << ")";
+    if (p->bodyNode)
+    {
+        p->bodyNode->Accept(this);
+    }
+    return nullptr;
+}
+
+llvm::Value *PrintVisitor::VisitBreakStmt(BreakStmt *p)
+{
+    llvm::outs() << "break ;";
+    return nullptr;
+}
+
+llvm::Value *PrintVisitor::VisitContinueStmt(ContinueStmt *p)
+{
+    llvm::outs() << "continue ;";
+    return nullptr;
+}
+
 llvm::Value *PrintVisitor::VisitDeclStmt(DeclStmt *p)
 {
     for (auto &node : p->nodeVec)

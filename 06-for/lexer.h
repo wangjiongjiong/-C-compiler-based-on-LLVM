@@ -13,6 +13,9 @@ enum class TokenType
     kw_int,        // int
     kw_if,         // if
     kw_else,       // else
+    kw_for,        // for
+    kw_break,      // break
+    kw_continue,   // continue
     minus,         // -
     plus,          // +
     star,          // *
@@ -51,7 +54,7 @@ public:
 
     void Dump()
     {
-        llvm::outs() << "{" << llvm::StringRef(ptr, len) << " row = " << row << ", col = " << col << "}\n";
+        llvm::outs() << "{" << '"' << llvm::StringRef(ptr, len) << '"' << " row = " << row << ", col = " << col << "}\n";
     }
 
     // 返回一个有效的字符串
