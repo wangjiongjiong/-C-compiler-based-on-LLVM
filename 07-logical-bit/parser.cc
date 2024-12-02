@@ -2,20 +2,28 @@
 
 /*
 prog : stmt*
-stmt : decl-stmt | expr-stmt | null-stmt | if-stmt | block-stmt | for-stmt
+stmt : decl-stmt | expr-stmt | null-stmt | if-stmt | block-stmt | for-stmt | break-stmt | continue-stmt
 null-stmt : ";"
 decl-stmt : "int" identifier ("," identifier (= expr)?)* ";"
 if-stmt : "if" "(" expr ")" stmt ( "else" stmt )?
 for-stmt : "for" "(" expr? ";" expr? ";" expr? ")" stmt
-        "for" "(" decl-stmt expr? ";" expr? ")" stmt
+                     "for" "(" decl-stmt expr? ";" expr? ")" stmt
 block-stmt: "{" stmt* "}"
+break-stmt: "break" ";"
+continue-stmt: "continue" ";"
 expr-stmt : expr ";"
-expr : assign-expr | equal-expr
+expr : assign-expr | logor-expr
 assign-expr: identifier "=" expr
+logor-expr: logand-expr ("||" logand-expr)*
+logand-expr: bitor-expr ("&&" bitor-expr)*
+bitor-expr: bitxor-expr ("|" bitxor-expr)*
+bitxor-expr: bitand-expr ("^" bitand-expr)*
+bitand-expr: equal-expr ("&" equal-expr)*
 equal-expr : relational-expr (("==" | "!=") relational-expr)*
-relational-expr: add-expr (("<"|">"|"<="|">=") add-expr)*
+relational-expr: shift-expr (("<"|">"|"<="|">=") shift-expr)*
+shift-expr: add-expr (("<<" | ">>") add-expr)*
 add-expr : mult-expr (("+" | "-") mult-expr)*
-mult-expr : primary-expr (("*" | "/") primary-expr)*
+mult-expr : primary-expr (("*" | "/" | "%") primary-expr)*
 primary-expr : identifier | number | "(" expr ")"
 number: ([0-9])+
 identifier : (a-zA-Z_)(a-zA-Z0-9_)*
@@ -92,7 +100,7 @@ std::shared_ptr<AstNode> Parser::ParseStmt()
         return ParseExprStmt();
     }
 }
-
+// 声明表达式
 std::shared_ptr<AstNode> Parser::ParserDeclStmt()
 {
     // parser 声明语句
@@ -136,7 +144,7 @@ std::shared_ptr<AstNode> Parser::ParserDeclStmt()
     Consume(TokenType::semi);
     return decl;
 }
-
+// if 表达式
 std::shared_ptr<AstNode> Parser::ParseIfStmt()
 {
     // If语句
@@ -156,7 +164,7 @@ std::shared_ptr<AstNode> Parser::ParseIfStmt()
     }
     return sema.SemaIfStmtNode(condExpr, thenstmt, elseStmt);
 }
-
+// 块语句表达式
 std::shared_ptr<AstNode> Parser::ParseBlockStmt()
 {
     sema.EnterScope();
@@ -171,7 +179,7 @@ std::shared_ptr<AstNode> Parser::ParseBlockStmt()
 
     return blockStmt;
 }
-
+// for语句表达式
 std::shared_ptr<AstNode> Parser::ParseForStmt()
 {
     Consume(TokenType::kw_for);
@@ -227,7 +235,7 @@ std::shared_ptr<AstNode> Parser::ParseForStmt()
 
     return node;
 }
-
+// break语句表达式
 std::shared_ptr<AstNode> Parser::ParseBreakStmt()
 {
     if (breakNodes.size() == 0)
@@ -241,7 +249,7 @@ std::shared_ptr<AstNode> Parser::ParseBreakStmt()
     node->target = breakNodes.back();
     return node;
 }
-
+// continue语句表达式
 std::shared_ptr<AstNode> Parser::ParseContinueStmt()
 {
     if (continueNodes.size() == 0)
@@ -255,7 +263,7 @@ std::shared_ptr<AstNode> Parser::ParseContinueStmt()
     node->target = continueNodes.back();
     return node;
 }
-
+// 表达式语句表达式
 std::shared_ptr<AstNode> Parser::ParseExprStmt()
 {
     // 表达式语句
@@ -263,7 +271,7 @@ std::shared_ptr<AstNode> Parser::ParseExprStmt()
     Consume(TokenType::semi);
     return expr;
 }
-
+// expr表达式
 std::shared_ptr<AstNode> Parser::ParseExpr()
 {
     // 左结合
@@ -297,9 +305,105 @@ std::shared_ptr<AstNode> Parser::ParseExpr()
         return ParseAssignExpr();
     }
 
-    return ParseEqualExpr();
+    return ParseLogOrExpr();
 };
 
+// parser 赋值表达式
+// a=b=c=3;
+std::shared_ptr<AstNode> Parser::ParseAssignExpr()
+{
+    Expect(TokenType::identifier);
+    // llvm::StringRef text = tok.content;
+    Token temp = tok;
+    Advance();
+    auto expr = sema.SemaVariableAccessNode(temp);
+    Token optoken = tok;
+    Consume(TokenType::equal);
+    return sema.SemaAssignExprNode(expr, ParseExpr(), optoken);
+}
+// 逻辑或表达式
+std::shared_ptr<AstNode> Parser::ParseLogOrExpr()
+{
+
+    auto left = ParseLogAndExpr();
+    while (tok.tokenType == TokenType::pipepipe)
+    {
+        OpCode op = OpCode::logOr;
+        Advance();
+        // 构造一个二元expr的指针
+        auto right = ParseLogAndExpr();
+        auto binaryExpr = sema.SemaBinaryExprNode(left, right, op);
+        left = binaryExpr;
+    }
+
+    return left;
+}
+// 逻辑与表达式
+std::shared_ptr<AstNode> Parser::ParseLogAndExpr()
+{
+
+    auto left = ParseBitOrExpr();
+    while (tok.tokenType == TokenType::ampamp)
+    {
+        OpCode op = OpCode::logAnd;
+        Advance();
+        // 构造一个二元expr的指针
+        auto right = ParseBitOrExpr();
+        auto binaryExpr = sema.SemaBinaryExprNode(left, right, op);
+        left = binaryExpr;
+    }
+
+    return left;
+}
+// 位或表达式
+std::shared_ptr<AstNode> Parser::ParseBitOrExpr()
+{
+    auto left = ParseBitXorExpr();
+    while (tok.tokenType == TokenType::pipe)
+    {
+        OpCode op = OpCode::bitOr;
+        Advance();
+        // 构造一个二元expr的指针
+        auto right = ParseBitXorExpr();
+        auto binaryExpr = sema.SemaBinaryExprNode(left, right, op);
+        left = binaryExpr;
+    }
+
+    return left;
+}
+// 位异或表达式
+std::shared_ptr<AstNode> Parser::ParseBitXorExpr()
+{
+    auto left = ParseBitAndExpr();
+    while (tok.tokenType == TokenType::caret)
+    {
+        OpCode op = OpCode::bitXor;
+        Advance();
+        // 构造一个二元expr的指针
+        auto right = ParseBitAndExpr();
+        auto binaryExpr = sema.SemaBinaryExprNode(left, right, op);
+        left = binaryExpr;
+    }
+
+    return left;
+}
+// 位与表达式
+std::shared_ptr<AstNode> Parser::ParseBitAndExpr()
+{
+    auto left = ParseEqualExpr();
+    while (tok.tokenType == TokenType::amp)
+    {
+        OpCode op = OpCode::bitAnd;
+        Advance();
+        // 构造一个二元expr的指针
+        auto right = ParseEqualExpr();
+        auto binaryExpr = sema.SemaBinaryExprNode(left, right, op);
+        left = binaryExpr;
+    }
+
+    return left;
+}
+// 等于表达式
 std::shared_ptr<AstNode> Parser::ParseEqualExpr()
 {
     auto left = ParseRelationalExpr();
@@ -323,11 +427,11 @@ std::shared_ptr<AstNode> Parser::ParseEqualExpr()
 
     return left;
 }
-
+// 条件关系表达式
 std::shared_ptr<AstNode> Parser::ParseRelationalExpr()
 {
 
-    auto left = ParseAddExpr();
+    auto left = ParseShiftExpr();
     while (tok.tokenType == TokenType::less ||
            tok.tokenType == TokenType::less_equal ||
            tok.tokenType == TokenType::greater ||
@@ -351,6 +455,30 @@ std::shared_ptr<AstNode> Parser::ParseRelationalExpr()
             op = OpCode::greater_equal;
         }
         Advance();
+        auto right = ParseShiftExpr();
+        auto binaryExpr = sema.SemaBinaryExprNode(left, right, op);
+        left = binaryExpr;
+    }
+
+    return left;
+}
+// 位移表达式
+std::shared_ptr<AstNode> Parser::ParseShiftExpr()
+{
+    auto left = ParseAddExpr();
+    while (tok.tokenType == TokenType::less_less ||
+           tok.tokenType == TokenType::greater_greater)
+    {
+        OpCode op;
+        if (tok.tokenType == TokenType::less_less)
+        {
+            op = OpCode::leftShift;
+        }
+        else
+        {
+            op = OpCode::rightShift;
+        }
+        Advance();
         auto right = ParseAddExpr();
         auto binaryExpr = sema.SemaBinaryExprNode(left, right, op);
         left = binaryExpr;
@@ -358,7 +486,7 @@ std::shared_ptr<AstNode> Parser::ParseRelationalExpr()
 
     return left;
 }
-
+// +表达式
 std::shared_ptr<AstNode> Parser::ParseAddExpr()
 {
 
@@ -391,19 +519,23 @@ std::shared_ptr<AstNode> Parser::ParseAddExpr()
 
     return left;
 }
-
+// *表达式
 std::shared_ptr<AstNode> Parser::ParseMultiExpr()
 {
 
     // 算符优先策略，优化策略
     // factor和term在enbf中非常类似所以这里代码几乎一样
     auto left = ParsePrimary();
-    while (tok.tokenType == TokenType::star || tok.tokenType == TokenType::slash)
+    while (tok.tokenType == TokenType::star || tok.tokenType == TokenType::slash || tok.tokenType == TokenType::percent)
     {
         OpCode op;
         if (tok.tokenType == TokenType::star)
         {
             op = OpCode::mul;
+        }
+        else if (tok.tokenType == TokenType::percent)
+        {
+            op = OpCode::mod;
         }
         else
         {
@@ -418,7 +550,7 @@ std::shared_ptr<AstNode> Parser::ParseMultiExpr()
 
     return left;
 };
-
+// 终结符表达式
 std::shared_ptr<AstNode> Parser::ParsePrimary()
 {
     // 最后就是看终结符
@@ -449,20 +581,6 @@ std::shared_ptr<AstNode> Parser::ParsePrimary()
         return factor;
     }
 };
-
-// parser 赋值表达式
-// a=b=c=3;
-std::shared_ptr<AstNode> Parser::ParseAssignExpr()
-{
-    Expect(TokenType::identifier);
-    // llvm::StringRef text = tok.content;
-    Token temp = tok;
-    Advance();
-    auto expr = sema.SemaVariableAccessNode(temp);
-    Token optoken = tok;
-    Consume(TokenType::equal);
-    return sema.SemaAssignExprNode(expr, ParseExpr(), optoken);
-}
 
 bool Parser::Expect(TokenType tokenType)
 {

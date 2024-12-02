@@ -73,6 +73,30 @@ llvm::StringRef Token::GetSpellingText(TokenType tokenType)
     case TokenType::greater_equal:
         return ">=";
 
+    case TokenType::pipe:
+        return "|";
+
+    case TokenType::pipepipe:
+        return "||";
+
+    case TokenType::amp:
+        return "&";
+
+    case TokenType::ampamp:
+        return "&&";
+
+    case TokenType::percent:
+        return "%";
+
+    case TokenType::less_less:
+        return "<<";
+
+    case TokenType::greater_greater:
+        return ">>";
+
+    case TokenType::caret:
+        return "^";
+
     case TokenType::identifier:
         return "identifier";
 
@@ -98,12 +122,40 @@ bool IsLetter(char ch)
     return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch == '_');
 }
 
+bool Lexer::StartWith(const char *p)
+{
+    return !strncmp(BufPtr, p, strlen(p));
+}
+
 void Lexer::NextToken(Token &tok)
 {
 
     // 1.删除空格
-    while (IsWhiteSpace(*BufPtr))
+    while (IsWhiteSpace(*BufPtr) || StartWith("//") || StartWith("/*"))
     {
+        // 单行注释
+        if (StartWith("//"))
+        {
+            while (*BufPtr != '\n')
+            {
+                BufPtr++;
+            }
+        }
+        // 多行注释
+        if (StartWith("/*"))
+        {
+            while (BufPtr[0] != '*' || BufPtr[1] != '/')
+            {
+                if (*BufPtr == '\n')
+                {
+                    row++;
+                    LineHeadPtr = BufPtr + 1;
+                }
+                BufPtr++;
+            }
+            BufPtr += 2;
+        }
+
         if (*BufPtr == '\n')
         {
             row++;
@@ -212,6 +264,14 @@ void Lexer::NextToken(Token &tok)
             tok.len = 1;
             break;
         }
+        case '%':
+        {
+            tok.tokenType = TokenType::percent;
+            BufPtr++;
+            tok.ptr = StartPtr;
+            tok.len = 1;
+            break;
+        }
         case ';':
         {
             tok.tokenType = TokenType::semi;
@@ -298,6 +358,13 @@ void Lexer::NextToken(Token &tok)
                 tok.ptr = StartPtr;
                 tok.len = 2;
             }
+            else if (*(BufPtr + 1) == '<')
+            {
+                tok.tokenType = TokenType::less_less;
+                BufPtr += 2;
+                tok.ptr = StartPtr;
+                tok.len = 2;
+            }
             else
             {
                 tok.tokenType = TokenType::less;
@@ -316,6 +383,13 @@ void Lexer::NextToken(Token &tok)
                 tok.ptr = StartPtr;
                 tok.len = 2;
             }
+            else if (*(BufPtr + 1) == '>')
+            {
+                tok.tokenType = TokenType::greater_greater;
+                BufPtr += 2;
+                tok.ptr = StartPtr;
+                tok.len = 2;
+            }
             else
             {
                 tok.tokenType = TokenType::greater;
@@ -323,6 +397,50 @@ void Lexer::NextToken(Token &tok)
                 tok.ptr = StartPtr;
                 tok.len = 1;
             }
+            break;
+        }
+        case '|':
+        {
+            if (*(BufPtr + 1) == '|')
+            {
+                tok.tokenType = TokenType::pipepipe;
+                BufPtr += 2;
+                tok.ptr = StartPtr;
+                tok.len = 2;
+            }
+            else
+            {
+                tok.tokenType = TokenType::pipe;
+                BufPtr++;
+                tok.ptr = StartPtr;
+                tok.len = 1;
+            }
+            break;
+        }
+        case '&':
+        {
+            if (*(BufPtr + 1) == '&')
+            {
+                tok.tokenType = TokenType::ampamp;
+                BufPtr += 2;
+                tok.ptr = StartPtr;
+                tok.len = 2;
+            }
+            else
+            {
+                tok.tokenType = TokenType::amp;
+                BufPtr++;
+                tok.ptr = StartPtr;
+                tok.len = 1;
+            }
+            break;
+        }
+        case '^':
+        {
+            tok.tokenType = TokenType::caret;
+            BufPtr++;
+            tok.ptr = StartPtr;
+            tok.len = 1;
             break;
         }
         default:

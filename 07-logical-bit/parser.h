@@ -10,17 +10,23 @@ null-stmt : ";"
 decl-stmt : "int" identifier ("," identifier (= expr)?)* ";"
 if-stmt : "if" "(" expr ")" stmt ( "else" stmt )?
 for-stmt : "for" "(" expr? ";" expr? ";" expr? ")" stmt
-        "for" "(" decl-stmt expr? ";" expr? ")" stmt
+                     "for" "(" decl-stmt expr? ";" expr? ")" stmt
 block-stmt: "{" stmt* "}"
 break-stmt: "break" ";"
 continue-stmt: "continue" ";"
 expr-stmt : expr ";"
-expr : assign-expr | equal-expr
+expr : assign-expr | logor-expr
 assign-expr: identifier "=" expr
+logor-expr: logand-expr ("||" logand-expr)*
+logand-expr: bitor-expr ("&&" bitor-expr)*
+bitor-expr: bitxor-expr ("|" bitxor-expr)*
+bitxor-expr: bitand-expr ("^" bitand-expr)*
+bitand-expr: equal-expr ("&" equal-expr)*
 equal-expr : relational-expr (("==" | "!=") relational-expr)*
-relational-expr: add-expr (("<"|">"|"<="|">=") add-expr)*
+relational-expr: shift-expr (("<"|">"|"<="|">=") shift-expr)*
+shift-expr: add-expr (("<<" | ">>") add-expr)*
 add-expr : mult-expr (("+" | "-") mult-expr)*
-mult-expr : primary-expr (("*" | "/") primary-expr)*
+mult-expr : primary-expr (("*" | "/" | "%") primary-expr)*
 primary-expr : identifier | number | "(" expr ")"
 number: ([0-9])+
 identifier : (a-zA-Z_)(a-zA-Z0-9_)*
@@ -47,21 +53,33 @@ public:
     std::shared_ptr<Program> ParseProgram();
 
 private:
-    std::shared_ptr<AstNode> ParseStmt();           // parser Stmt
-    std::shared_ptr<AstNode> ParserDeclStmt();      // parser 声明语句 --- 经过修改的文法都是由语句构成的
-    std::shared_ptr<AstNode> ParseIfStmt();         // parser If语句
-    std::shared_ptr<AstNode> ParseBlockStmt();      // parser 块语句也就是{}
-    std::shared_ptr<AstNode> ParseForStmt();        // parser for语句
-    std::shared_ptr<AstNode> ParseBreakStmt();      // parser break语句
-    std::shared_ptr<AstNode> ParseContinueStmt();   // parser continue语句
-    std::shared_ptr<AstNode> ParseExprStmt();       // parser Expr语句
-    std::shared_ptr<AstNode> ParseExpr();           // parser表达式
-    std::shared_ptr<AstNode> ParseAssignExpr();     // parser 赋值表达式
+    std::shared_ptr<AstNode> ParseStmt(); // parser Stmt
+
+    std::shared_ptr<AstNode> ParserDeclStmt();    // parser 声明语句 --- 经过修改的文法都是由语句构成的
+    std::shared_ptr<AstNode> ParseIfStmt();       // parser If语句
+    std::shared_ptr<AstNode> ParseBlockStmt();    // parser 块语句也就是{}
+    std::shared_ptr<AstNode> ParseForStmt();      // parser for语句
+    std::shared_ptr<AstNode> ParseBreakStmt();    // parser break语句
+    std::shared_ptr<AstNode> ParseContinueStmt(); // parser continue语句
+    std::shared_ptr<AstNode> ParseExprStmt();     // parser Expr语句
+
+    std::shared_ptr<AstNode> ParseExpr(); // parser表达式
+
+    std::shared_ptr<AstNode> ParseAssignExpr(); // parser 赋值表达式
+    std::shared_ptr<AstNode> ParseLogOrExpr();  // parser 逻辑||表达式
+
+    std::shared_ptr<AstNode> ParseLogAndExpr();     // parser 逻辑&&表达式
+    std::shared_ptr<AstNode> ParseBitOrExpr();      // parser 位|表达式
+    std::shared_ptr<AstNode> ParseBitXorExpr();     // parser 位^表达式
+    std::shared_ptr<AstNode> ParseBitAndExpr();     // parser 位&表达式
     std::shared_ptr<AstNode> ParseEqualExpr();      // parser equal表达式
     std::shared_ptr<AstNode> ParseRelationalExpr(); // parser 关系表达式
-    std::shared_ptr<AstNode> ParseAddExpr();        // parser 加号表达式
-    std::shared_ptr<AstNode> ParseMultiExpr();      // parser 乘号表达式
-    std::shared_ptr<AstNode> ParsePrimary();        // parser factor
+    std::shared_ptr<AstNode> ParseShiftExpr();      // parser 移位表达式
+
+    std::shared_ptr<AstNode> ParseAddExpr();   // parser 加号表达式
+    std::shared_ptr<AstNode> ParseMultiExpr(); // parser 乘号表达式
+
+    std::shared_ptr<AstNode> ParsePrimary(); // parser factor
 
     bool IsTypeName(); // 判断类型
 

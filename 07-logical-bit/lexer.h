@@ -8,32 +8,40 @@
 
 enum class TokenType
 {
-    number,        // 数字
-    identifier,    // 标识符
-    kw_int,        // int
-    kw_if,         // if
-    kw_else,       // else
-    kw_for,        // for
-    kw_break,      // break
-    kw_continue,   // continue
-    minus,         // -
-    plus,          // +
-    star,          // *
-    slash,         // "/"
-    l_parent,      // "("
-    r_parent,      // ")"
-    semi,          // ";"
-    equal,         // =
-    comma,         // ,
-    l_brace,       // {
-    r_brace,       // }
-    equal_equal,   // ==
-    not_equal,     // !=
-    less,          // <
-    less_equal,    // <=
-    greater,       //>
-    greater_equal, //>=
-    eof            // end
+    number,          // 数字
+    identifier,      // 标识符
+    kw_int,          // int
+    kw_if,           // if
+    kw_else,         // else
+    kw_for,          // for
+    kw_break,        // break
+    kw_continue,     // continue
+    minus,           // -
+    plus,            // +
+    star,            // *
+    slash,           // "/"
+    l_parent,        // "("
+    r_parent,        // ")"
+    semi,            // ";"
+    equal,           // =
+    comma,           // ,
+    l_brace,         // {
+    r_brace,         // }
+    equal_equal,     // ==
+    not_equal,       // !=
+    less,            // <
+    less_equal,      // <=
+    greater,         // >
+    greater_equal,   // >=
+    pipe,            // |
+    pipepipe,        // ||
+    amp,             // &
+    ampamp,          // &&
+    percent,         // %
+    less_less,       // <<
+    greater_greater, // >>
+    caret,           // ^
+    eof              // end
 };
 
 class Token
@@ -90,6 +98,9 @@ public:
     {
         return diagEngine;
     }
+
+private:
+    bool StartWith(const char *p);
 
 private:
     const char *BufPtr;
