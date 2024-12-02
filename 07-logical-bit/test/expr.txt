@@ -1,0 +1,29 @@
+int aa,b = 4;
+aa =1;
+aa = b =5;
+if(b<=10)
+{
+  aa = 30; 
+  if(aa!=5) 
+  {
+    aa = 6;
+  }
+}
+else
+{
+   b = 19; 
+}
+for(int i = 0; i<100;i=i+1)
+{
+  b = 3;
+  aa = aa + i;
+  if( i >= 1)
+  {
+    continue;
+  }
+  for(int j = 1;j< 10;j = j+2)
+  {
+    b = b*j;
+  }
+}
+aa+b*(4+5);
