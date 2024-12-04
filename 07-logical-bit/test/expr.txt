@@ -1,4 +1,4 @@
-int aa,b = 4;
+/*int aa,b = 4;
 aa =1;
 aa = b =5;
 if(b<=10)
@@ -10,13 +10,15 @@ if(b<=10)
     aa << 2;
     aa | 1;
     aa ^ 2;
+    aa & 2;
+    aa && 2;
 
   }
 }
 else
 {
    b = 19; 
-}
+}*/
 /*for(int i = 0; i<100;i=i+1)
 {
   b = 3;
@@ -30,4 +32,9 @@ else
     b = b*j;
   }
 }*/
-aa+b*(4+5);
+//aa+b*(4+5);
+
+int aa = 1;
+int b = 1;
+aa = aa || b && aa;
+aa + b;   
